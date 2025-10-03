@@ -18,21 +18,36 @@ object PriceList {
     CabinPrice("CB", "S2", 270.00)
   )
 
-  def getBestGroupPrices(rates: Seq[Rate], prices: Seq[CabinPrice]): Seq[BestGroupPrice] =
+  def getBestGroupPrices(rates: Seq[Rate], prices: Seq[CabinPrice]): Seq[BestGroupPrice] = {
+    val pricesByRate: Map[String, Seq[CabinPrice]] = prices.groupBy(_.rateCode)
     rates
       .groupBy(_.rateGroup)
-      .flatMap { case (rateGroup, rates) => bestPricesInGroup(rateGroup, rates, prices) }
+      .flatMap { case (rateGroup, groupRates) =>
+        bestPricesInGroup(rateGroup, groupRates, pricesByRate)
+      }
       .toSeq
       .sortBy(_.price)
+  }
 
-  private def bestPricesInGroup(rateGroup: String, rates: Seq[Rate], prices: Seq[CabinPrice]) =
-    rates
-      .flatMap(rate => prices.filter(_.rateCode == rate.rateCode))
+  private def bestPricesInGroup(
+    rateGroup: String,
+    rates: Seq[Rate],
+    pricesByRate: Map[String, Seq[CabinPrice]]
+  ): Seq[BestGroupPrice] = {
+    val cabinPrices = rates.flatMap(rate => pricesByRate.getOrElse(rate.rateCode, Seq.empty))
+    cabinPrices
       .groupBy(_.cabinCode)
-      .flatMap { case (_, cabinPrices) =>  bestCabinPriceInGroup(cabinPrices, rateGroup) }
+      .flatMap { case (_, sameCabinPrices) =>
+        bestCabinPriceInGroup(sameCabinPrices, rateGroup)
+      }
+      .toSeq
+  }
 
   private def bestCabinPriceInGroup(prices: Seq[CabinPrice], rateGroup: String) =
     prices
       .minByOption(_.price)
-      .map(cabinPrice => BestGroupPrice(cabinPrice.cabinCode, cabinPrice.rateCode, cabinPrice.price, rateGroup))
+      .map(cabinPrice =>
+        BestGroupPrice(cabinPrice.cabinCode, cabinPrice.rateCode, cabinPrice.price, rateGroup)
+      )
 }
+

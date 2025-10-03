@@ -14,16 +14,21 @@ object Promotions {
   )
 
   def allCombinablePromotions(allPromotions: Seq[Promotion]): Seq[PromotionCombo] = {
-    def collectCombinablePromotions(currentCombo: Seq[Promotion], remaining: Seq[Promotion]): Seq[Seq[String]] =
-      if (remaining.isEmpty) Seq(currentCombo.map(_.code).sorted)
+    def collect(current: Seq[Promotion], remaining: Seq[Promotion]): Seq[Seq[String]] =
+      if (remaining.isEmpty) Seq(current.map(_.code).sorted)
       else
         remaining.flatMap { promotion =>
-          val combinableWithCurrent = remaining.filter { aPromotion =>
-            aPromotion.code != promotion.code && !promotion.notCombinableWith.contains(aPromotion.code)
+          val newRemaining = remaining.filter { aPromotion =>
+            aPromotion.code != promotion.code &&
+              !promotion.notCombinableWith.contains(aPromotion.code)
           }
-          collectCombinablePromotions(currentCombo :+ promotion, combinableWithCurrent)
+          collect(current :+ promotion, newRemaining)
         }
-    collectCombinablePromotions(Nil, allPromotions).distinct.map(PromotionCombo)
+
+    val collected = collect(Nil, allPromotions).distinct
+    collected
+      .filterNot { combo => collected.exists(other => other != combo && combo.toSet.subsetOf(other.toSet)) }
+      .map(PromotionCombo)
   }
 
   def combinablePromotions(
